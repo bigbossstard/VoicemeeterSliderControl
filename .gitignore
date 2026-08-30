@@ -1,0 +1,12 @@
+﻿bin/
+obj/
+*.user
+*.exe
+*.dll
+*.pdb
+dotnet-sdk-*.exe
+runtimes/
+Config.json
+Voice Meeter Slider Control/
+*.deps.json
+*.runtimeconfig.json
