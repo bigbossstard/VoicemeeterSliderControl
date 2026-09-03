@@ -2,6 +2,8 @@
 obj/
 *.user
 *.exe
+*.zip
+*.png
 *.dll
 *.pdb
 dotnet-sdk-*.exe
