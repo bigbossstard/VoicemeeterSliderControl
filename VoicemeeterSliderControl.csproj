@@ -8,9 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="System.IO.Ports" Version="5.0.1" />
-      <PackageReference Include="VoicemeeterRemote" Version="1.0.3" />
-      <EmbeddedResource Include="icon.ico" />
+        <PackageReference Include="System.IO.Ports" Version="5.0.1" />
+        <PackageReference Include="VoicemeeterRemote" Version="1.0.3" />
+        <EmbeddedResource Include="icon.ico" />
+        <EmbeddedResource Include="icon_connected.ico" />
     </ItemGroup>
 
 </Project>

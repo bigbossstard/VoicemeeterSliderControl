@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Ports;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -9,12 +8,12 @@ namespace VoicemeeterSliderControl
 {
     static class Program
     {
-        static SerialPort _serialPort;
         static IDisposable _vmSession;
         static AppConfig _config;
         static bool _enabled = true;
         static NotifyIcon _trayIcon;
         static readonly object _configLock = new object();
+        static ArduinoConnection _connection;
 
         public static volatile int LastKnownSliderCount = 0;
 
@@ -22,10 +21,10 @@ namespace VoicemeeterSliderControl
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "VoicemeeterSliderControl", "config.json");
 
-        static System.Drawing.Icon LoadEmbeddedIcon()
+        static System.Drawing.Icon LoadEmbeddedIcon(string name)
         {
             var asm = System.Reflection.Assembly.GetExecutingAssembly();
-            using var stream = asm.GetManifestResourceStream("VoicemeeterSliderControl.icon.ico");
+            using var stream = asm.GetManifestResourceStream($"VoicemeeterSliderControl.{name}");
             if (stream == null) return System.Drawing.SystemIcons.Application;
             return new System.Drawing.Icon(stream);
         }
@@ -55,7 +54,8 @@ namespace VoicemeeterSliderControl
 
             if (_config.SliderSets.Count == 0 || string.IsNullOrEmpty(_config.PortName))
             {
-                using var form = new SettingsForm(_config, cfg => {
+                using var form = new SettingsForm(_config, cfg =>
+                {
                     _config = cfg;
                     SaveConfig();
                 });
@@ -68,15 +68,10 @@ namespace VoicemeeterSliderControl
                 }
             }
 
-            if (!TryOpenPort())
-            {
-                Cleanup();
-                return;
-            }
-
             var menu = new ContextMenuStrip();
             var toggleItem = new ToolStripMenuItem("Включено ✓");
-            toggleItem.Click += (s, e) => {
+            toggleItem.Click += (s, e) =>
+            {
                 _enabled = !_enabled;
                 toggleItem.Text = _enabled ? "Включено ✓" : "Выключено";
             };
@@ -92,12 +87,19 @@ namespace VoicemeeterSliderControl
 
             _trayIcon = new NotifyIcon
             {
-                Icon = LoadEmbeddedIcon(),
+                Icon = LoadEmbeddedIcon("icon.ico"),
                 Text = "Voicemeeter Slider Control",
                 ContextMenuStrip = menu,
                 Visible = true
             };
 
+            _connection = new ArduinoConnection();
+            _connection.ValuesReceived += OnValuesReceived;
+            _connection.ConnectionStateChanged += connected =>
+            {
+                _trayIcon.Icon = LoadEmbeddedIcon(connected ? "icon_connected.ico" : "icon.ico");
+            };
+            _connection.Start(_config.PortName, _config.BaudRate);
             Application.ApplicationExit += (s, e) => Cleanup();
             Application.Run();
         }
@@ -107,38 +109,13 @@ namespace VoicemeeterSliderControl
             AppConfig snapshot;
             lock (_configLock) { snapshot = _config; }
 
-            using var form = new SettingsForm(snapshot, cfg => {
+            using var form = new SettingsForm(snapshot, cfg =>
+            {
                 lock (_configLock) { _config = cfg; }
                 SaveConfig();
-
-                if (_serialPort != null && _serialPort.PortName != cfg.PortName)
-                {
-                    try { if (_serialPort.IsOpen) _serialPort.Close(); } catch { }
-                    TryOpenPort();
-                }
+                _connection.UpdatePort(cfg.PortName, cfg.BaudRate);
             });
             form.ShowDialog();
-        }
-
-        static bool TryOpenPort()
-        {
-            try
-            {
-                _serialPort = new SerialPort(_config.PortName, _config.BaudRate, Parity.None, 8, StopBits.One);
-                _serialPort.NewLine = "\n";
-                _serialPort.ReadTimeout = 500;
-                _serialPort.Open();
-                _serialPort.DtrEnable = true;
-                _serialPort.RtsEnable = true;
-                _serialPort.DiscardInBuffer();
-                _serialPort.DataReceived += SerialPort_DataReceived;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Не удалось открыть порт {_config.PortName}: {ex.Message}", "Ошибка");
-                return false;
-            }
         }
 
         static void LoadConfig()
@@ -168,57 +145,28 @@ namespace VoicemeeterSliderControl
 
         static void Cleanup()
         {
-            try { if (_serialPort != null && _serialPort.IsOpen) _serialPort.Close(); } catch { }
+            try { _connection?.Stop(); } catch { }
             try { _vmSession?.Dispose(); } catch { }
             try { _trayIcon.Visible = false; } catch { }
         }
 
-        static void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        static void OnValuesReceived(List<float> valuesFloat)
         {
             if (!_enabled) return;
-            try
+
+            LastKnownSliderCount = valuesFloat.Count;
+
+            AppConfig cfg;
+            lock (_configLock) { cfg = _config; }
+
+            foreach (var mapping in cfg.SliderSets)
             {
-                string latestInput = null;
-                while (_serialPort.BytesToRead > 0)
+                if (mapping.Slider < valuesFloat.Count && !string.IsNullOrEmpty(mapping.VoicemeeterValue))
                 {
-                    string line;
-                    try { line = _serialPort.ReadLine(); }
-                    catch (TimeoutException) { break; }
-                    if (!string.IsNullOrWhiteSpace(line)) latestInput = line;
-                }
-                if (latestInput == null) return;
-
-                List<float> valuesFloat = ParseValuesFloat(latestInput);
-                LastKnownSliderCount = valuesFloat.Count;
-
-                AppConfig cfg;
-                lock (_configLock) { cfg = _config; }
-
-                foreach (var mapping in cfg.SliderSets)
-                {
-                    if (mapping.Slider < valuesFloat.Count && !string.IsNullOrEmpty(mapping.VoicemeeterValue))
-                    {
-                        float setValue = map(valuesFloat[mapping.Slider], 0f, 100f, -60f, 12f);
-                        VoiceMeeter.Remote.SetParameter(mapping.VoicemeeterValue, setValue);
-                    }
+                    float setValue = ArduinoConnection.Map(valuesFloat[mapping.Slider], 0f, 100f, -60f, 12f);
+                    VoiceMeeter.Remote.SetParameter(mapping.VoicemeeterValue, setValue);
                 }
             }
-            catch { }
         }
-
-        public static List<float> ParseValuesFloat(string input)
-        {
-            List<float> floats = new List<float>();
-            foreach (var value in input.Split('|'))
-            {
-                string clean = value.Replace("\r", "").Replace("\n", "").Trim();
-                if (!string.IsNullOrEmpty(clean) && int.TryParse(clean, out int parsed))
-                    floats.Add(map(parsed, 0, 1024, 0f, 100f));
-            }
-            return floats;
-        }
-
-        public static float map(float value, float from1, float to1, float from2, float to2)
-            => (value - from1) / (to1 - from1) * (to2 - from2) + from2;
     }
 }

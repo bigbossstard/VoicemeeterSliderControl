@@ -44,14 +44,18 @@ namespace VoicemeeterSliderControl
             var typeLabel = new Label
             {
                 Text = $"Voicemeeter {VmInterop.GetVoicemeeterKindName()}, каналов: {_channels.Count}",
-                Left = 10, Top = 40, Width = 440
+                Left = 10,
+                Top = 40,
+                Width = 440
             };
             Controls.Add(typeLabel);
 
             _autoStartCheck = new CheckBox
             {
                 Text = "Запускать при старте Windows",
-                Left = 10, Top = 65, Width = 300,
+                Left = 10,
+                Top = 65,
+                Width = 300,
                 Checked = AutoStart.IsEnabled()
             };
             Controls.Add(_autoStartCheck);
