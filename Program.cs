@@ -39,14 +39,22 @@ namespace VoicemeeterSliderControl
             Application.ThreadException += (s, e) =>
                 MessageBox.Show($"Ошибка UI-потока: {e.Exception}", "Ошибка");
 
-            try
+            _vmSession = null;
+            for (int attempt = 0; attempt < 10 && _vmSession == null; attempt++)
             {
-                _vmSession = VoiceMeeter.Remote.Initialize(Voicemeeter.RunVoicemeeterParam.VoicemeeterPotato)
-                    .GetAwaiter().GetResult();
+                try
+                {
+                    _vmSession = VoiceMeeter.Remote.Initialize(Voicemeeter.RunVoicemeeterParam.VoicemeeterPotato)
+                        .GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    System.Threading.Thread.Sleep(2000);
+                }
             }
-            catch (Exception ex)
+            if (_vmSession == null)
             {
-                MessageBox.Show($"Не удалось подключиться к Voicemeeter: {ex.Message}", "Ошибка");
+                MessageBox.Show("Не удалось подключиться к Voicemeeter после нескольких попыток.", "Ошибка");
                 return;
             }
 
@@ -120,15 +128,25 @@ namespace VoicemeeterSliderControl
 
         static void LoadConfig()
         {
-            try
+            for (int attempt = 0; attempt < 5; attempt++)
             {
-                if (File.Exists(ConfigPath))
+                try
                 {
-                    _config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(ConfigPath));
-                    return;
+                    if (File.Exists(ConfigPath))
+                    {
+                        _config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(ConfigPath));
+                        if (_config != null) return;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                catch
+                {
+                    System.Threading.Thread.Sleep(500);
                 }
             }
-            catch { }
             _config = new AppConfig();
         }
 
