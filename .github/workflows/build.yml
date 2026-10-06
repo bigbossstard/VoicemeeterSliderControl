@@ -3,7 +3,7 @@ name: Build and smoke test
 on:
   push:
     branches:
-      - improve/stability-and-osd
+      - improve/osd-layout-v2
   workflow_dispatch:
 
 permissions:
