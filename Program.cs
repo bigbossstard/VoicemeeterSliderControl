@@ -156,6 +156,7 @@ namespace VoicemeeterSliderControl
                         _osd.ShowValue(
                             slider,
                             mapping.DisplayName,
+                            mapping.VoicemeeterValue,
                             db);
                     }
                 };
