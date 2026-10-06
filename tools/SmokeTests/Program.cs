@@ -140,8 +140,6 @@ static class Program
                 $"{name}: actual={actual}, expected={expected}.");
         }
     }
-}
-
 
     static void AssertEqual(
         string actual,
@@ -157,3 +155,4 @@ static class Program
                 $"{name}: actual=\"{actual}\", expected=\"{expected}\".");
         }
     }
+}
