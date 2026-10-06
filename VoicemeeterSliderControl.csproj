@@ -1,17 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <OutputType>WinExe</OutputType>
-        <TargetFramework>net10.0-windows</TargetFramework>
-        <UseWindowsForms>true</UseWindowsForms>
-        <ApplicationIcon>icon.ico</ApplicationIcon>
-    </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <AssemblyName>VoicemeeterSliderControl</AssemblyName>
+    <RootNamespace>VoicemeeterSliderControl</RootNamespace>
+    <Version>0.0.5</Version>
+    <AssemblyVersion>0.0.5.0</AssemblyVersion>
+    <FileVersion>0.0.5.0</FileVersion>
+    <InformationalVersion>0.0.5</InformationalVersion>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="System.IO.Ports" Version="5.0.1" />
-        <PackageReference Include="VoicemeeterRemote" Version="1.0.3" />
-        <EmbeddedResource Include="icon.ico" />
-        <EmbeddedResource Include="icon_connected.ico" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="10.0.12" />
+    <PackageReference Include="VoicemeeterRemote" Version="2.0.0" />
+    <EmbeddedResource Include="icon.ico" />
+    <EmbeddedResource Include="icon_connected.ico" />
+  </ItemGroup>
 
 </Project>
