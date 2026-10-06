@@ -44,6 +44,16 @@ jobs:
           $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.5-win-x64.zip -Algorithm SHA256).Hash
           "$hashZip  VoicemeeterSliderControl-0.0.5-win-x64.zip" | Add-Content SHA256SUMS.txt
 
+      - name: Recreate release at release branch
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release delete 0.0.5v
+          --yes
+          --cleanup-tag
+          --repo ${{ github.repository }}
+
       - name: Create GitHub Release
         shell: pwsh
         env:
@@ -54,5 +64,6 @@ jobs:
           VoicemeeterSliderControl-0.0.5-win-x64.zip
           SHA256SUMS.txt
           --repo ${{ github.repository }}
+          --target release/0.0.5
           --title "Voicemeeter Slider Control 0.0.5"
           --notes "Стабильность COM/hot-plug, снижение нагрузки на Voicemeeter API, пакетная передача изменений, исправления native ABI, обновление зависимостей, click-through OSD с названием входа и значением Gain, smoke tests и self-contained Windows x64 build."
