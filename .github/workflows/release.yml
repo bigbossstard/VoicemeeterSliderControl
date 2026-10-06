@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - release/0.0.7
+      - release/0.0.8
 
 permissions:
   contents: write
@@ -38,20 +38,20 @@ jobs:
       - name: Create archive and checksum
         shell: pwsh
         run: |
-          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.7-win-x64.zip -Force
+          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.8-win-x64.zip -Force
           $hash = (Get-FileHash publish/VoicemeeterSliderControl.exe -Algorithm SHA256).Hash
           "$hash  VoicemeeterSliderControl.exe" | Set-Content SHA256SUMS.txt
-          $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.7-win-x64.zip -Algorithm SHA256).Hash
-          "$hashZip  VoicemeeterSliderControl-0.0.7-win-x64.zip" | Add-Content SHA256SUMS.txt
+          $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.8-win-x64.zip -Algorithm SHA256).Hash
+          "$hashZip  VoicemeeterSliderControl-0.0.8-win-x64.zip" | Add-Content SHA256SUMS.txt
 
       - name: Create or update GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $releaseTag = "0.0.7v"
-          $releaseTitle = "Voicemeeter Slider Control 0.0.7"
-          $releaseNotes = "Компактный OSD с подгонкой размера под текст и надёжным автоматическим скрытием. В OSD: Strip 5 → Voicemeeter Input, Strip 6 → Voicemeeter VAIO3, Strip 7 остаётся Strip 7. Остальная логика Voicemeeter и настройки не изменяются."
+          $releaseTag = "0.0.8v"
+          $releaseTitle = "Voicemeeter Slider Control 0.0.8"
+          $releaseNotes = "Плавное обновление значения OSD. В OSD: Strip 5 → Voicemeeter Input, Strip 6 → Voicemeeter AUX 1, Strip 7 → Voicemeeter VAIO3. Алиасы привязаны к реальным параметрам Voicemeeter; остальная логика не изменяется."
 
           gh release view $releaseTag --repo ${{ github.repository }} *> $null
 
@@ -61,13 +61,13 @@ jobs:
               throw "Не удалось обновить существующий GitHub Release."
             }
 
-            gh release upload $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.7-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --clobber
+            gh release upload $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.8-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --clobber
             if ($LASTEXITCODE -ne 0) {
               throw "Не удалось обновить assets существующего GitHub Release."
             }
           }
           else {
-            gh release create $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.7-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --target release/0.0.7 --title $releaseTitle --notes $releaseNotes
+            gh release create $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.8-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --target release/0.0.8 --title $releaseTitle --notes $releaseNotes
             if ($LASTEXITCODE -ne 0) {
               throw "Не удалось создать GitHub Release."
             }
