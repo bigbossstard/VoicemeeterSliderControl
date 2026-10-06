@@ -49,7 +49,7 @@ namespace VoicemeeterSliderControl
             }
 
             _notifyWindow = new DeviceNotificationWindow();
-            _notifyWindow.DeviceArrived += TryOpen;
+            _notifyWindow.DeviceArrived += OnDeviceArrived;
             _notifyWindow.DeviceRemoved += ClosePort;
             _notifyWindow.RegisterForComPortNotifications();
 
@@ -106,6 +106,8 @@ namespace VoicemeeterSliderControl
             ClosePort();
             TryOpen();
         }
+
+        void OnDeviceArrived() => TryOpen();
 
         bool TryOpen()
         {
@@ -377,7 +379,7 @@ namespace VoicemeeterSliderControl
             {
                 if (_notifyWindow != null)
                 {
-                    _notifyWindow.DeviceArrived -= TryOpen;
+                    _notifyWindow.DeviceArrived -= OnDeviceArrived;
                     _notifyWindow.DeviceRemoved -= ClosePort;
                     _notifyWindow.Dispose();
                     _notifyWindow = null;
