@@ -15,6 +15,13 @@ namespace VoicemeeterSliderControl
         const int SWP_NOACTIVATE = 0x0010;
         const int SWP_SHOWWINDOW = 0x0040;
 
+        const int VisibleDurationMs = 700;
+        const int TimerIntervalMs = 25;
+        const int HorizontalPadding = 20;
+        const int MinimumWidth = 150;
+        const int MaximumWidth = 250;
+        const int OverlayHeight = 46;
+
         static readonly IntPtr HWND_TOPMOST =
             new IntPtr(-1);
 
@@ -23,13 +30,13 @@ namespace VoicemeeterSliderControl
         readonly Font _titleFont =
             new Font(
                 "Segoe UI Semibold",
-                9.5f,
+                9.0f,
                 FontStyle.Bold);
 
         readonly Font _valueFont =
             new Font(
                 "Segoe UI Semibold",
-                14.0f,
+                13.0f,
                 FontStyle.Bold);
 
         string _title = "";
@@ -37,8 +44,6 @@ namespace VoicemeeterSliderControl
 
         DateTime _hideAtUtc =
             DateTime.MinValue;
-
-        bool _fading;
 
         public OsdOverlayForm()
         {
@@ -50,10 +55,10 @@ namespace VoicemeeterSliderControl
             ControlBox = false;
             DoubleBuffered = true;
 
-            // Compact by design: it should identify the slider
-            // without becoming a permanent HUD element.
-            Width = 300;
-            Height = 54;
+            // The overlay is intentionally fitted to its text.
+            // It should not occupy a large empty rectangle.
+            Width = MinimumWidth;
+            Height = OverlayHeight;
 
             BackColor =
                 Color.FromArgb(
@@ -65,22 +70,23 @@ namespace VoicemeeterSliderControl
 
             Padding =
                 new Padding(
-                    12,
-                    5,
-                    12,
-                    5);
+                    HorizontalPadding / 2,
+                    4,
+                    HorizontalPadding / 2,
+                    4);
 
             Opacity = 0;
 
             _timer =
                 new Timer
                 {
-                    Interval = 30
+                    Interval = TimerIntervalMs
                 };
 
             _timer.Tick += Timer_Tick;
 
-            // Create the HWND on the UI thread in advance.
+            // Create the HWND on the UI thread in advance so
+            // cross-thread ShowValue calls can marshal reliably.
             _ = Handle;
 
             UpdateRegion();
@@ -153,14 +159,14 @@ namespace VoicemeeterSliderControl
             var titleRect =
                 new Rectangle(
                     textLeft,
-                    3,
+                    2,
                     textWidth,
-                    19);
+                    17);
 
             var valueRect =
                 new Rectangle(
                     textLeft,
-                    21,
+                    17,
                     textWidth,
                     25);
 
@@ -229,7 +235,7 @@ namespace VoicemeeterSliderControl
             using var path =
                 new GraphicsPath();
 
-            const int radius = 10;
+            const int radius = 9;
 
             var rect =
                 new Rectangle(
@@ -304,13 +310,11 @@ namespace VoicemeeterSliderControl
                 return;
             }
 
-            string name =
+            _title =
                 GetOsdName(
                     sliderIndex,
                     displayName,
                     voicemeeterValue);
-
-            _title = name;
 
             _value =
                 db.ToString(
@@ -318,18 +322,18 @@ namespace VoicemeeterSliderControl
                     CultureInfo.CurrentCulture) +
                 " dB";
 
+            ResizeToContent();
+
             PositionOnForegroundMonitor();
 
-            _fading = false;
-
-            Opacity = 0.92;
+            Opacity = 0.94;
 
             _hideAtUtc =
-                DateTime.UtcNow.AddMilliseconds(800);
+                DateTime.UtcNow.AddMilliseconds(
+                    VisibleDurationMs);
 
-            _timer.Start();
-
-            Invalidate();
+            if (!Visible)
+                Show();
 
             SetWindowPos(
                 Handle,
@@ -340,39 +344,84 @@ namespace VoicemeeterSliderControl
                 Height,
                 SWP_NOACTIVATE |
                 SWP_SHOWWINDOW);
+
+            _timer.Start();
+            Invalidate();
         }
 
-        static string GetOsdName(
+        // OSD-only aliases. They intentionally use the same
+        // user-facing Strip numbering shown in Settings, rather
+        // than guessing from zero-based Voicemeeter API indices.
+        internal static string GetOsdName(
             int sliderIndex,
             string displayName,
             string voicemeeterValue)
         {
-            // OSD-only aliases for Voicemeeter Potato
-            // virtual inputs. The stored mapping and
-            // Settings UI remain untouched.
-            switch (
-                (voicemeeterValue ?? "")
-                    .Trim()
-                    .ToUpperInvariant())
+            string name =
+                (displayName ?? "").Trim();
+
+            if (name.Equals(
+                    "Strip 5",
+                    StringComparison.OrdinalIgnoreCase))
             {
-                case "STRIP[4].GAIN":
-                    return "Voicemeeter Input";
-
-                case "STRIP[5].GAIN":
-                    return "Voicemeeter AUX 1";
-
-                case "STRIP[6].GAIN":
-                    return "Voicemeeter VAIO3";
+                return "Voicemeeter Input";
             }
 
-            if (!string.IsNullOrWhiteSpace(
-                    displayName))
+            if (name.Equals(
+                    "Strip 6",
+                    StringComparison.OrdinalIgnoreCase))
             {
-                return displayName.Trim();
+                return "Voicemeeter VAIO3";
             }
+
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
 
             return
                 $"Слайдер {sliderIndex + 1}";
+        }
+
+        void ResizeToContent()
+        {
+            Size titleSize =
+                TextRenderer.MeasureText(
+                    _title,
+                    _titleFont,
+                    new Size(
+                        MaximumWidth -
+                        HorizontalPadding,
+                        OverlayHeight),
+                    TextFormatFlags.NoPadding |
+                    TextFormatFlags.SingleLine);
+
+            Size valueSize =
+                TextRenderer.MeasureText(
+                    _value,
+                    _valueFont,
+                    new Size(
+                        MaximumWidth -
+                        HorizontalPadding,
+                        OverlayHeight),
+                    TextFormatFlags.NoPadding |
+                    TextFormatFlags.SingleLine);
+
+            int width =
+                Math.Max(
+                    titleSize.Width,
+                    valueSize.Width) +
+                HorizontalPadding;
+
+            width =
+                Math.Clamp(
+                    width,
+                    MinimumWidth,
+                    MaximumWidth);
+
+            if (Width != width)
+                Width = width;
+
+            if (Height != OverlayHeight)
+                Height = OverlayHeight;
         }
 
         void PositionOnForegroundMonitor()
@@ -401,7 +450,7 @@ namespace VoicemeeterSliderControl
             Rectangle area =
                 screen.WorkingArea;
 
-            const int margin = 18;
+            const int margin = 16;
 
             int x =
                 area.Right -
@@ -424,30 +473,18 @@ namespace VoicemeeterSliderControl
             EventArgs e)
         {
             if (!Visible)
+            {
+                _timer.Stop();
                 return;
+            }
 
-            if (!_fading &&
-                DateTime.UtcNow >=
+            if (DateTime.UtcNow <
                 _hideAtUtc)
             {
-                _fading = true;
-            }
-
-            if (!_fading)
                 return;
-
-            Opacity -= 0.08;
-
-            if (Opacity <= 0.02)
-            {
-                Opacity = 0;
-
-                Hide();
-
-                _timer.Stop();
-
-                _fading = false;
             }
+
+            HideOverlayCore();
         }
 
         public void HideOverlay()
@@ -470,12 +507,14 @@ namespace VoicemeeterSliderControl
                 return;
             }
 
+            HideOverlayCore();
+        }
+
+        void HideOverlayCore()
+        {
             _timer.Stop();
-
-            _fading = false;
-
+            _hideAtUtc = DateTime.MinValue;
             Opacity = 0;
-
             Hide();
         }
 
