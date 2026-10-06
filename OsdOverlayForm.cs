@@ -17,6 +17,7 @@ namespace VoicemeeterSliderControl
 
         const int VisibleDurationMs = 700;
         const int TimerIntervalMs = 25;
+        const float DisplaySmoothing = 0.35f;
         const int HorizontalPadding = 20;
         const int MinimumWidth = 150;
         const int MaximumWidth = 250;
@@ -41,6 +42,10 @@ namespace VoicemeeterSliderControl
 
         string _title = "";
         string _value = "";
+
+        float _targetDb;
+        float _displayDb;
+        bool _hasDisplayValue;
 
         DateTime _hideAtUtc =
             DateTime.MinValue;
@@ -316,11 +321,16 @@ namespace VoicemeeterSliderControl
                     displayName,
                     voicemeeterValue);
 
-            _value =
-                db.ToString(
-                    "0.0",
-                    CultureInfo.CurrentCulture) +
-                " dB";
+            _targetDb = Math.Clamp(db, -60f, 12f);
+
+            if (!_hasDisplayValue ||
+                !Visible)
+            {
+                _displayDb = _targetDb;
+                _hasDisplayValue = true;
+            }
+
+            UpdateDisplayedValueText();
 
             ResizeToContent();
 
@@ -349,36 +359,37 @@ namespace VoicemeeterSliderControl
             Invalidate();
         }
 
-        // OSD-only aliases. They intentionally use the same
-        // user-facing Strip numbering shown in Settings, rather
-        // than guessing from zero-based Voicemeeter API indices.
+        // OSD-only aliases are keyed by the actual Voicemeeter
+        // parameter, not by DisplayName. This keeps the aliases
+        // stable even when channel labels change in Settings.
         internal static string GetOsdName(
             int sliderIndex,
             string displayName,
             string voicemeeterValue)
         {
-            string name =
-                (displayName ?? "").Trim();
+            string parameter =
+                (voicemeeterValue ?? "")
+                    .Trim()
+                    .ToUpperInvariant();
 
-            if (name.Equals(
-                    "Strip 5",
-                    StringComparison.OrdinalIgnoreCase))
+            return parameter switch
             {
-                return "Voicemeeter Input";
-            }
+                "STRIP[4].GAIN" =>
+                    "Voicemeeter Input",
 
-            if (name.Equals(
-                    "Strip 6",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return "Voicemeeter VAIO3";
-            }
+                "STRIP[5].GAIN" =>
+                    "Voicemeeter AUX 1",
 
-            if (!string.IsNullOrWhiteSpace(name))
-                return name;
+                "STRIP[6].GAIN" =>
+                    "Voicemeeter VAIO3",
 
-            return
-                $"Слайдер {sliderIndex + 1}";
+                _ when !string.IsNullOrWhiteSpace(
+                    displayName) =>
+                    displayName.Trim(),
+
+                _ =>
+                    $"Слайдер {sliderIndex + 1}"
+            };
         }
 
         void ResizeToContent()
@@ -478,6 +489,23 @@ namespace VoicemeeterSliderControl
                 return;
             }
 
+            if (Math.Abs(
+                    _targetDb - _displayDb) > 0.01f)
+            {
+                _displayDb +=
+                    (_targetDb - _displayDb) *
+                    DisplaySmoothing;
+
+                if (Math.Abs(
+                        _targetDb - _displayDb) <= 0.01f)
+                {
+                    _displayDb = _targetDb;
+                }
+
+                UpdateDisplayedValueText();
+                Invalidate();
+            }
+
             if (DateTime.UtcNow <
                 _hideAtUtc)
             {
@@ -508,6 +536,15 @@ namespace VoicemeeterSliderControl
             }
 
             HideOverlayCore();
+        }
+
+        void UpdateDisplayedValueText()
+        {
+            _value =
+                _displayDb.ToString(
+                    "0.0",
+                    CultureInfo.CurrentCulture) +
+                " dB";
         }
 
         void HideOverlayCore()
