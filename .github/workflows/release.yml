@@ -44,16 +44,6 @@ jobs:
           $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.6-win-x64.zip -Algorithm SHA256).Hash
           "$hashZip  VoicemeeterSliderControl-0.0.6-win-x64.zip" | Add-Content SHA256SUMS.txt
 
-      - name: Recreate release at release branch
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release delete 0.0.6v
-          --yes
-          --cleanup-tag
-          --repo ${{ github.repository }}
-
       - name: Create GitHub Release
         shell: pwsh
         env:
