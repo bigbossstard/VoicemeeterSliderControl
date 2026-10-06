@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Text.Json;
 using VoicemeeterSliderControl;
 
@@ -73,6 +74,53 @@ static class Program
                 "Config JSON round-trip failed.");
         }
 
+        var getOsdName =
+            typeof(OsdOverlayForm)
+                .GetMethod(
+                    "GetOsdName",
+                    BindingFlags.NonPublic |
+                    BindingFlags.Static);
+
+        if (getOsdName == null)
+            throw new Exception(
+                "OSD name resolver was not found.");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
+                    "Strip 5",
+                    "Strip[4].Gain"
+                }),
+            "Voicemeeter Input",
+            "OSD Strip 5 alias");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
+                    "Strip 6",
+                    "Strip[5].Gain"
+                }),
+            "Voicemeeter VAIO3",
+            "OSD Strip 6 alias");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
+                    "Strip 7",
+                    "Strip[6].Gain"
+                }),
+            "Strip 7",
+            "OSD Strip 7 remains unchanged");
+
         Console.WriteLine(
             "Smoke tests passed.");
 
@@ -93,3 +141,19 @@ static class Program
         }
     }
 }
+
+
+    static void AssertEqual(
+        string actual,
+        string expected,
+        string name)
+    {
+        if (!string.Equals(
+                actual,
+                expected,
+                StringComparison.Ordinal))
+        {
+            throw new Exception(
+                $"{name}: actual=\"{actual}\", expected=\"{expected}\".");
+        }
+    }
