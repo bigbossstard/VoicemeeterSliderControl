@@ -3,7 +3,7 @@ name: Build and smoke test
 on:
   push:
     branches:
-      - improve/osd-compact-stable
+      - improve/osd-smooth-aliases
   workflow_dispatch:
 
 permissions:
@@ -42,12 +42,12 @@ jobs:
 
       - name: Create archive
         shell: pwsh
-        run: Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.7-win-x64.zip -Force
+        run: Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.8-win-x64.zip -Force
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VoicemeeterSliderControl-0.0.7-win-x64
+          name: VoicemeeterSliderControl-0.0.8-win-x64
           path: |
             publish/VoicemeeterSliderControl.exe
-            VoicemeeterSliderControl-0.0.7-win-x64.zip
+            VoicemeeterSliderControl-0.0.8-win-x64.zip
