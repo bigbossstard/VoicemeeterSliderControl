@@ -44,16 +44,31 @@ jobs:
           $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.7-win-x64.zip -Algorithm SHA256).Hash
           "$hashZip  VoicemeeterSliderControl-0.0.7-win-x64.zip" | Add-Content SHA256SUMS.txt
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create 0.0.7v
-          publish/VoicemeeterSliderControl.exe
-          VoicemeeterSliderControl-0.0.7-win-x64.zip
-          SHA256SUMS.txt
-          --repo ${{ github.repository }}
-          --target release/0.0.7
-          --title "Voicemeeter Slider Control 0.0.7"
-          --notes "Стабильность COM/hot-plug, снижение нагрузки на Voicemeeter API, пакетная передача изменений, исправления native ABI, обновление зависимостей, click-through OSD с названием входа и значением Gain, smoke tests и self-contained Windows x64 build."
+        run: |
+          $releaseTag = "0.0.7v"
+          $releaseTitle = "Voicemeeter Slider Control 0.0.7"
+          $releaseNotes = "Компактный OSD с подгонкой размера под текст и надёжным автоматическим скрытием. В OSD: Strip 5 → Voicemeeter Input, Strip 6 → Voicemeeter VAIO3, Strip 7 остаётся Strip 7. Остальная логика Voicemeeter и настройки не изменяются."
+
+          gh release view $releaseTag --repo ${{ github.repository }} *> $null
+
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $releaseTag --repo ${{ github.repository }} --title $releaseTitle --notes $releaseNotes
+            if ($LASTEXITCODE -ne 0) {
+              throw "Не удалось обновить существующий GitHub Release."
+            }
+
+            gh release upload $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.7-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Не удалось обновить assets существующего GitHub Release."
+            }
+          }
+          else {
+            gh release create $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.7-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --target release/0.0.7 --title $releaseTitle --notes $releaseNotes
+            if ($LASTEXITCODE -ne 0) {
+              throw "Не удалось создать GitHub Release."
+            }
+          }
