@@ -18,10 +18,14 @@ namespace VoicemeeterSliderControl
         static readonly IntPtr HWND_TOPMOST =
             new IntPtr(-1);
 
-        readonly Label _titleLabel;
-        readonly Label _valueLabel;
         readonly Timer _timer;
+        readonly Font _titleFont =
+            new Font("Segoe UI Semibold", 11.0f, FontStyle.Bold);
+        readonly Font _valueFont =
+            new Font("Segoe UI Semibold", 16.0f, FontStyle.Bold);
 
+        string _title = "";
+        string _value = "";
         DateTime _hideAtUtc = DateTime.MinValue;
         bool _fading;
 
@@ -33,6 +37,7 @@ namespace VoicemeeterSliderControl
             StartPosition = FormStartPosition.Manual;
             TopMost = true;
             ControlBox = false;
+            DoubleBuffered = true;
 
             Width = 360;
             Height = 78;
@@ -40,34 +45,6 @@ namespace VoicemeeterSliderControl
             ForeColor = Color.White;
             Padding = new Padding(16, 9, 16, 8);
             Opacity = 0;
-
-            _titleLabel = new Label
-            {
-                Dock = DockStyle.Top,
-                Height = 29,
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-                Font = new Font(
-                    "Segoe UI Semibold",
-                    11.0f,
-                    FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            _valueLabel = new Label
-            {
-                Dock = DockStyle.Fill,
-                ForeColor = Color.Gainsboro,
-                BackColor = Color.Transparent,
-                Font = new Font(
-                    "Segoe UI Semibold",
-                    16.0f,
-                    FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            Controls.Add(_valueLabel);
-            Controls.Add(_titleLabel);
 
             _timer = new Timer { Interval = 30 };
             _timer.Tick += Timer_Tick;
@@ -83,12 +60,94 @@ namespace VoicemeeterSliderControl
             get
             {
                 var cp = base.CreateParams;
+
                 cp.ExStyle |= 0x00000020; // WS_EX_TRANSPARENT
                 cp.ExStyle |= 0x00000080; // WS_EX_TOOLWINDOW
                 cp.ExStyle |= 0x00080000; // WS_EX_LAYERED
                 cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE
+
                 return cp;
             }
+        }
+
+        protected override void OnPaintBackground(
+            PaintEventArgs e)
+        {
+            using var brush =
+                new SolidBrush(BackColor);
+
+            e.Graphics.FillRectangle(
+                brush,
+                ClientRectangle);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            e.Graphics.SmoothingMode =
+                SmoothingMode.AntiAlias;
+            e.Graphics.TextRenderingHint =
+                System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            Rectangle client = ClientRectangle;
+            int textLeft = Padding.Left;
+            int textWidth =
+                client.Width -
+                Padding.Left -
+                Padding.Right;
+
+            using var titleBrush =
+                new SolidBrush(Color.White);
+
+            using var valueBrush =
+                new SolidBrush(Color.Gainsboro);
+
+            var titleRect =
+                new Rectangle(
+                    textLeft,
+                    Padding.Top,
+                    textWidth,
+                    28);
+
+            var valueRect =
+                new Rectangle(
+                    textLeft,
+                    Padding.Top + 27,
+                    textWidth,
+                    32);
+
+            using var titleFormat =
+                new StringFormat
+                {
+                    Alignment = StringAlignment.Near,
+                    LineAlignment = StringAlignment.Center,
+                    Trimming = StringTrimming.EllipsisCharacter,
+                    FormatFlags = StringFormatFlags.NoWrap
+                };
+
+            using var valueFormat =
+                new StringFormat
+                {
+                    Alignment = StringAlignment.Near,
+                    LineAlignment = StringAlignment.Center,
+                    Trimming = StringTrimming.EllipsisCharacter,
+                    FormatFlags = StringFormatFlags.NoWrap
+                };
+
+            e.Graphics.DrawString(
+                _title,
+                _titleFont,
+                titleBrush,
+                titleRect,
+                titleFormat);
+
+            e.Graphics.DrawString(
+                _value,
+                _valueFont,
+                valueBrush,
+                valueRect,
+                valueFormat);
         }
 
         protected override void OnResize(EventArgs e)
@@ -102,9 +161,16 @@ namespace VoicemeeterSliderControl
             if (Width <= 0 || Height <= 0)
                 return;
 
-            using var path = new GraphicsPath();
+            using var path =
+                new GraphicsPath();
+
             const int radius = 12;
-            var rect = new Rectangle(0, 0, Width, Height);
+            var rect =
+                new Rectangle(
+                    0,
+                    0,
+                    Width,
+                    Height);
 
             path.AddArc(
                 rect.Left,
@@ -147,7 +213,8 @@ namespace VoicemeeterSliderControl
             string displayName,
             float db)
         {
-            if (IsDisposed) return;
+            if (IsDisposed)
+                return;
 
             if (InvokeRequired)
             {
@@ -171,10 +238,10 @@ namespace VoicemeeterSliderControl
                     ? $"Слайдер {sliderIndex + 1}"
                     : displayName.Trim();
 
-            _titleLabel.Text =
+            _title =
                 $"Вход  •  {name}";
 
-            _valueLabel.Text =
+            _value =
                 $"{db.ToString(
                     "0.0",
                     CultureInfo.CurrentCulture)} dB";
@@ -187,6 +254,7 @@ namespace VoicemeeterSliderControl
                 DateTime.UtcNow.AddMilliseconds(950);
 
             _timer.Start();
+            Invalidate();
 
             SetWindowPos(
                 Handle,
@@ -200,23 +268,28 @@ namespace VoicemeeterSliderControl
 
         void PositionOnForegroundMonitor()
         {
-            IntPtr foreground = GetForegroundWindow();
+            IntPtr foreground =
+                GetForegroundWindow();
+
             Screen screen;
 
             try
             {
-                screen = foreground == IntPtr.Zero
-                    ? Screen.PrimaryScreen
-                    : Screen.FromHandle(foreground);
+                screen =
+                    foreground == IntPtr.Zero
+                        ? Screen.PrimaryScreen
+                        : Screen.FromHandle(foreground);
             }
             catch
             {
                 screen = Screen.PrimaryScreen;
             }
 
-            if (screen == null) return;
+            if (screen == null)
+                return;
 
-            Rectangle area = screen.WorkingArea;
+            Rectangle area =
+                screen.WorkingArea;
 
             int x =
                 area.Left +
@@ -226,12 +299,16 @@ namespace VoicemeeterSliderControl
                 area.Top +
                 Math.Max(20, area.Height / 14);
 
-            Location = new Point(x, y);
+            Location =
+                new Point(x, y);
         }
 
-        void Timer_Tick(object sender, EventArgs e)
+        void Timer_Tick(
+            object sender,
+            EventArgs e)
         {
-            if (!Visible) return;
+            if (!Visible)
+                return;
 
             if (!_fading &&
                 DateTime.UtcNow >= _hideAtUtc)
@@ -239,7 +316,8 @@ namespace VoicemeeterSliderControl
                 _fading = true;
             }
 
-            if (!_fading) return;
+            if (!_fading)
+                return;
 
             Opacity -= 0.08;
 
@@ -254,13 +332,19 @@ namespace VoicemeeterSliderControl
 
         public void HideOverlay()
         {
-            if (IsDisposed) return;
+            if (IsDisposed)
+                return;
 
             if (InvokeRequired)
             {
-                try { BeginInvoke(
-                    new Action(HideOverlay)); }
-                catch { }
+                try
+                {
+                    BeginInvoke(
+                        new Action(HideOverlay));
+                }
+                catch
+                {
+                }
 
                 return;
             }
@@ -271,7 +355,8 @@ namespace VoicemeeterSliderControl
             Hide();
         }
 
-        protected override void WndProc(ref Message m)
+        protected override void WndProc(
+            ref Message m)
         {
             if (m.Msg == WM_NCHITTEST)
             {
@@ -283,12 +368,15 @@ namespace VoicemeeterSliderControl
             base.WndProc(ref m);
         }
 
-        protected override void Dispose(bool disposing)
+        protected override void Dispose(
+            bool disposing)
         {
             if (disposing)
             {
                 _timer.Stop();
                 _timer.Dispose();
+                _titleFont.Dispose();
+                _valueFont.Dispose();
             }
 
             base.Dispose(disposing);
