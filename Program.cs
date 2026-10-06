@@ -290,6 +290,7 @@ namespace VoicemeeterSliderControl
                 _config.PortName,
                 _config.BaudRate);
 
+            Application.ApplicationExit += (s, e) => Cleanup();
             Application.Run();
         }
 
