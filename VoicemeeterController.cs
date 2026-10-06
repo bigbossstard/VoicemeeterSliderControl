@@ -9,7 +9,10 @@ namespace VoicemeeterSliderControl
     public sealed class VoicemeeterController : IDisposable
     {
         const float SendThresholdDb = 0.10f;
-        // OSD is a user-facing movement hint, not a level meter. A larger\n        // threshold prevents normal potentiometer ADC noise from continually\n        // refreshing the overlay while the knob is stationary.\n        const float OsdThresholdDb = 1.00f;
+        // OSD is a user-facing movement hint, not a level meter. A larger
+        // threshold prevents normal potentiometer ADC noise from continually
+        // refreshing the overlay while the knob is stationary.
+        const float OsdThresholdDb = 1.00f;
         static readonly TimeSpan RetryDelay =
             TimeSpan.FromMilliseconds(500);
 
