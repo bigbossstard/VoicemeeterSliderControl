@@ -27,7 +27,9 @@ jobs:
         run: dotnet --info
 
       - name: Restore
-        run: dotnet restore VoicemeeterSliderControl.csproj
+        run: |
+          dotnet restore VoicemeeterSliderControl.csproj
+          dotnet restore tools/SmokeTests/SmokeTests.csproj
 
       - name: Build Release
         run: dotnet build VoicemeeterSliderControl.csproj -c Release --no-restore
