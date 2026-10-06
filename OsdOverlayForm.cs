@@ -359,14 +359,38 @@ namespace VoicemeeterSliderControl
             Invalidate();
         }
 
-        // OSD-only aliases are keyed by the actual Voicemeeter
-        // parameter, not by DisplayName. This keeps the aliases
-        // stable even when channel labels change in Settings.
+        // Virtual-input names are defined by the user-facing Strip number
+        // shown in Settings. We also keep the real VM-parameter aliases as
+        // a fallback so the OSD remains correct if the stored label changes.
         internal static string GetOsdName(
             int sliderIndex,
             string displayName,
             string voicemeeterValue)
         {
+            string name =
+                (displayName ?? "").Trim();
+
+            if (name.Equals(
+                    "Strip 5",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return "Voicemeeter Input";
+            }
+
+            if (name.Equals(
+                    "Strip 6",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return "Voicemeeter AUX 1";
+            }
+
+            if (name.Equals(
+                    "Strip 7",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return "Voicemeeter VAIO3";
+            }
+
             string parameter =
                 (voicemeeterValue ?? "")
                     .Trim()
@@ -384,8 +408,8 @@ namespace VoicemeeterSliderControl
                     "Voicemeeter VAIO3",
 
                 _ when !string.IsNullOrWhiteSpace(
-                    displayName) =>
-                    displayName.Trim(),
+                    name) =>
+                    name,
 
                 _ =>
                     $"Слайдер {sliderIndex + 1}"
