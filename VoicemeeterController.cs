@@ -12,7 +12,7 @@ namespace VoicemeeterSliderControl
         // OSD is a user-facing movement hint, not a level meter. A larger
         // threshold prevents normal potentiometer ADC noise from continually
         // refreshing the overlay while the knob is stationary.
-        const float OsdThresholdDb = 1.00f;
+        const float OsdThresholdDb = 0.10f;
         static readonly TimeSpan RetryDelay =
             TimeSpan.FromMilliseconds(500);
 
