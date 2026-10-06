@@ -91,7 +91,7 @@ static class Program
                 new object[]
                 {
                     0,
-                    "Strip 5",
+                    "Любое имя",
                     "Strip[4].Gain"
                 }),
             "Voicemeeter Input",
@@ -106,7 +106,7 @@ static class Program
                     "Strip 6",
                     "Strip[5].Gain"
                 }),
-            "Voicemeeter VAIO3",
+            "Voicemeeter AUX 1",
             "OSD Strip 6 alias");
 
         AssertEqual(
@@ -118,8 +118,20 @@ static class Program
                     "Strip 7",
                     "Strip[6].Gain"
                 }),
-            "Strip 7",
-            "OSD Strip 7 remains unchanged");
+            "Voicemeeter VAIO3",
+            "OSD Strip 7 alias");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
+                    "Fallback",
+                    "strip[6].gain"
+                }),
+            "Voicemeeter VAIO3",
+            "OSD alias is case-insensitive");
 
         Console.WriteLine(
             "Smoke tests passed.");
