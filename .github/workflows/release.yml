@@ -51,7 +51,7 @@ jobs:
         run: |
           $releaseTag = "0.0.8v"
           $releaseTitle = "Voicemeeter Slider Control 0.0.8"
-          $releaseNotes = "Плавное обновление значения OSD. В OSD: Strip 5 → Voicemeeter Input, Strip 6 → Voicemeeter AUX 1, Strip 7 → Voicemeeter VAIO3. Алиасы привязаны к реальным параметрам Voicemeeter; остальная логика не изменяется."
+          $releaseNotes = "Плавное обновление значения OSD. Алиасы OSD привязаны к реальным параметрам Voicemeeter: Strip 5 → Voicemeeter Input, Strip 6 → Voicemeeter AUX 1, Strip 7 → Voicemeeter VAIO3. Остальная логика не изменяется."
 
           gh release view $releaseTag --repo ${{ github.repository }} *> $null
 
