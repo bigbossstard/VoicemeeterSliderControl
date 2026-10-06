@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - release/0.0.6
+      - release/0.0.7
 
 permissions:
   contents: write
@@ -38,22 +38,22 @@ jobs:
       - name: Create archive and checksum
         shell: pwsh
         run: |
-          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.6-win-x64.zip -Force
+          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.7-win-x64.zip -Force
           $hash = (Get-FileHash publish/VoicemeeterSliderControl.exe -Algorithm SHA256).Hash
           "$hash  VoicemeeterSliderControl.exe" | Set-Content SHA256SUMS.txt
-          $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.6-win-x64.zip -Algorithm SHA256).Hash
-          "$hashZip  VoicemeeterSliderControl-0.0.6-win-x64.zip" | Add-Content SHA256SUMS.txt
+          $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.7-win-x64.zip -Algorithm SHA256).Hash
+          "$hashZip  VoicemeeterSliderControl-0.0.7-win-x64.zip" | Add-Content SHA256SUMS.txt
 
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create 0.0.6v
+          gh release create 0.0.7v
           publish/VoicemeeterSliderControl.exe
-          VoicemeeterSliderControl-0.0.6-win-x64.zip
+          VoicemeeterSliderControl-0.0.7-win-x64.zip
           SHA256SUMS.txt
           --repo ${{ github.repository }}
-          --target release/0.0.6
-          --title "Voicemeeter Slider Control 0.0.6"
+          --target release/0.0.7
+          --title "Voicemeeter Slider Control 0.0.7"
           --notes "Стабильность COM/hot-plug, снижение нагрузки на Voicemeeter API, пакетная передача изменений, исправления native ABI, обновление зависимостей, click-through OSD с названием входа и значением Gain, smoke tests и self-contained Windows x64 build."
