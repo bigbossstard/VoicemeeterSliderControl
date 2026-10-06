@@ -127,6 +127,42 @@ static class Program
                 new object[]
                 {
                     0,
+                    "Strip 5",
+                    "Strip[99].Gain"
+                }),
+            "Voicemeeter Input",
+            "OSD Strip 5 label mapping");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
+                    "Strip 6",
+                    "Strip[99].Gain"
+                }),
+            "Voicemeeter AUX 1",
+            "OSD Strip 6 label mapping");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
+                    "Strip 7",
+                    "Strip[99].Gain"
+                }),
+            "Voicemeeter VAIO3",
+            "OSD Strip 7 label mapping");
+
+        AssertEqual(
+            (string)getOsdName.Invoke(
+                null,
+                new object[]
+                {
+                    0,
                     "Fallback",
                     "strip[6].gain"
                 }),
