@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - release/0.0.5
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: |
+          dotnet restore VoicemeeterSliderControl.csproj
+          dotnet restore tools/SmokeTests/SmokeTests.csproj
+
+      - name: Build Release
+        run: dotnet build VoicemeeterSliderControl.csproj -c Release --no-restore
+
+      - name: Run smoke tests
+        run: dotnet run --project tools/SmokeTests/SmokeTests.csproj -c Release --no-restore
+
+      - name: Publish Windows x64
+        run: dotnet publish VoicemeeterSliderControl.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -o publish
+
+      - name: Create archive and checksum
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.5-win-x64.zip -Force
+          $hash = (Get-FileHash publish/VoicemeeterSliderControl.exe -Algorithm SHA256).Hash
+          "$hash  VoicemeeterSliderControl.exe" | Set-Content SHA256SUMS.txt
+          $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.5-win-x64.zip -Algorithm SHA256).Hash
+          "$hashZip  VoicemeeterSliderControl-0.0.5-win-x64.zip" | Add-Content SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create 0.0.5v
+          publish/VoicemeeterSliderControl.exe
+          VoicemeeterSliderControl-0.0.5-win-x64.zip
+          SHA256SUMS.txt
+          --repo ${{ github.repository }}
+          --title "Voicemeeter Slider Control 0.0.5"
+          --notes "Стабильность COM/hot-plug, снижение нагрузки на Voicemeeter API, пакетная передача изменений, исправления native ABI, обновление зависимостей, click-through OSD с названием входа и значением Gain, smoke tests и self-contained Windows x64 build."
