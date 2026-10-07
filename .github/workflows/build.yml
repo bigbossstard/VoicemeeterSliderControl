@@ -3,7 +3,7 @@ name: Build and smoke test
 on:
   push:
     branches:
-      - improve/osd-virtual-input-names
+      - main
   workflow_dispatch:
 
 permissions:
@@ -26,6 +26,19 @@ jobs:
         shell: pwsh
         run: dotnet --info
 
+      - name: Read application version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content VoicemeeterSliderControl.csproj
+          $version = ($project.Project.PropertyGroup.Version | Select-Object -First 1).ToString().Trim()
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid application version in VoicemeeterSliderControl.csproj: '$version'"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Restore
         run: |
           dotnet restore VoicemeeterSliderControl.csproj
@@ -42,12 +55,14 @@ jobs:
 
       - name: Create archive
         shell: pwsh
-        run: Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.9-win-x64.zip -Force
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath "VoicemeeterSliderControl-$env:VERSION-win-x64.zip" -Force
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VoicemeeterSliderControl-0.0.9-win-x64
+          name: VoicemeeterSliderControl-${{ steps.version.outputs.version }}-win-x64
           path: |
             publish/VoicemeeterSliderControl.exe
-            VoicemeeterSliderControl-0.0.9-win-x64.zip
+            VoicemeeterSliderControl-${{ steps.version.outputs.version }}-win-x64.zip
