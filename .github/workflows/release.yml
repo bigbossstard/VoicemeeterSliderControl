@@ -2,8 +2,9 @@ name: Release
 
 on:
   push:
-    branches:
-      - release/0.0.9
+    tags:
+      - "*v"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,6 +22,28 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Validate release tag and application version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+
+          if ($tag -notmatch '^(?<version>\d+\.\d+\.\d+)v$') {
+            throw "Release workflow must run for a version tag like 0.0.10v. Current ref: '$tag'"
+          }
+
+          $version = $Matches.version
+
+          [xml]$project = Get-Content VoicemeeterSliderControl.csproj
+          $projectVersion = ($project.Project.PropertyGroup.Version | Select-Object -First 1).ToString().Trim()
+
+          if ($projectVersion -ne $version) {
+            throw "Version mismatch: git tag is '$version', but VoicemeeterSliderControl.csproj contains '$projectVersion'."
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
       - name: Restore
         run: |
           dotnet restore VoicemeeterSliderControl.csproj
@@ -37,24 +60,31 @@ jobs:
 
       - name: Create archive and checksum
         shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath VoicemeeterSliderControl-0.0.9-win-x64.zip -Force
-          $hash = (Get-FileHash publish/VoicemeeterSliderControl.exe -Algorithm SHA256).Hash
-          "$hash  VoicemeeterSliderControl.exe" | Set-Content SHA256SUMS.txt
-          $hashZip = (Get-FileHash VoicemeeterSliderControl-0.0.9-win-x64.zip -Algorithm SHA256).Hash
-          "$hashZip  VoicemeeterSliderControl-0.0.9-win-x64.zip" | Add-Content SHA256SUMS.txt
+          $zipName = "VoicemeeterSliderControl-$env:VERSION-win-x64.zip"
+          Compress-Archive -Path publish/VoicemeeterSliderControl.exe -DestinationPath $zipName -Force
+
+          $hashExe = (Get-FileHash publish/VoicemeeterSliderControl.exe -Algorithm SHA256).Hash
+          "$hashExe  VoicemeeterSliderControl.exe" | Set-Content SHA256SUMS.txt
+
+          $hashZip = (Get-FileHash $zipName -Algorithm SHA256).Hash
+          "$hashZip  $zipName" | Add-Content SHA256SUMS.txt
 
       - name: Create or update GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          $releaseTag = "0.0.9v"
-          $releaseTitle = "Voicemeeter Slider Control 0.0.9"
-          $releaseNotes = "Исправлены OSD-обозначения виртуальных входов: Strip 5 → Voicemeeter Input, Strip 6 → Voicemeeter AUX 1, Strip 7 → Voicemeeter VAIO3. Плавное отображение Gain сохранено."
+          $releaseTag = $env:RELEASE_TAG
+          $releaseTitle = "Voicemeeter Slider Control $env:VERSION"
+          $zipName = "VoicemeeterSliderControl-$env:VERSION-win-x64.zip"
 
           # A failed gh release create can leave an untagged release behind.
-          # Remove only such an orphan when it has exactly this release title.
+          # Remove only such an orphan when it has the exact title for this version.
           $orphanReleases = gh release list --repo ${{ github.repository }} --limit 100 --json tagName,name |
             ConvertFrom-Json |
             Where-Object {
@@ -72,19 +102,19 @@ jobs:
           gh release view $releaseTag --repo ${{ github.repository }} *> $null
 
           if ($LASTEXITCODE -eq 0) {
-            gh release edit $releaseTag --repo ${{ github.repository }} --title $releaseTitle --notes $releaseNotes
+            gh release edit $releaseTag --repo ${{ github.repository }} --title $releaseTitle
             if ($LASTEXITCODE -ne 0) {
               throw "Не удалось обновить существующий GitHub Release."
             }
-
-            gh release upload $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.9-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --clobber
-            if ($LASTEXITCODE -ne 0) {
-              throw "Не удалось обновить assets существующего GitHub Release."
-            }
           }
           else {
-            gh release create $releaseTag publish/VoicemeeterSliderControl.exe VoicemeeterSliderControl-0.0.9-win-x64.zip SHA256SUMS.txt --repo ${{ github.repository }} --target release/0.0.9 --title $releaseTitle --notes $releaseNotes
+            gh release create $releaseTag --repo ${{ github.repository }} --verify-tag --title $releaseTitle --generate-notes
             if ($LASTEXITCODE -ne 0) {
               throw "Не удалось создать GitHub Release."
             }
+          }
+
+          gh release upload $releaseTag publish/VoicemeeterSliderControl.exe $zipName SHA256SUMS.txt --repo ${{ github.repository }} --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Не удалось загрузить assets GitHub Release."
           }
